@@ -502,54 +502,6 @@ try{
 var BU={"admin":{p:"BS-admin-2026",r:"admin",n:"Carlos"},"javiersantillana":{p:"BS-javiersantillana-2026",r:"admin",n:"Javier Santillana"},"jesus":{p:"BS-jesus-2026",r:"mecanico",n:"Jes\u00fas Fern\u00e1ndez"},"josejavier":{p:"BS-josejavier-2026",r:"mecanico",n:"Jos\u00e9 Javier"},"emilio":{p:"BS-emilio-2026",r:"mecanico",n:"Emilio"},"james":{p:"BS-james-2026",r:"mecanico",n:"James"},"lorenzo":{p:"BS-lorenzo-2026",r:"mecanico",n:"Lorenzo"},"rocio":{p:"BS-rocio-2026",r:"mecanico",n:"Roc\u00edo"},"maria":{p:"BS-maria-2026",r:"mecanico",n:"Mar\u00eda"},"dino":{p:"BS-dino-2026",r:"mecanico",n:"Dino"},"david":{p:"BS-david-2026",r:"mecanico",n:"David"},"bautista":{p:"BS-bautista-2026",r:"mecanico",n:"Bautista"}};
 var BI=Object.keys(BU);
 var CU=null,PLS=[],PCN='',GD=0;
-// === AVISOS EN SUPABASE ===
-window._avisos=[];
-
-function loadAvisos(){
-  console.log('Cargando avisos desde Supabase...');
-  fetch(SUPABASE_URL+'/rest/v1/avisos?order=created_at.desc&limit=100',{
-    headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
-  }).then(function(r){
-    if(!r.ok)return r.text().then(function(t){console.error('Error cargando avisos:',t);throw new Error(t)});
-    return r.json();
-  }).then(function(data){
-    console.log('Avisos cargados:',data.length);
-    window._avisos=data.map(function(a){
-      return {id:a.id,c:a.cliente||'',s:a.asunto||'',t:a.texto||'',u:a.urgente,w:a.creador_nombre,wi:a.creador_id,d:new Date(a.created_at).toLocaleDateString('es-ES')+' '+new Date(a.created_at).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}),para:a.para||['todos']}
-    });
-    renderAvi();
-  }).catch(function(e){console.error('Error cargando avisos:',e)});
-}
-
-function insertAviso(av){
-  var payload={cliente:av.c||'',asunto:av.s||'',texto:av.t||'',urgente:av.u||false,creador_id:av.wi||'',creador_nombre:av.w||'',para:av.para||['todos']};
-  console.log('Insertando aviso:',JSON.stringify(payload));
-  return fetch(SUPABASE_URL+'/rest/v1/avisos',{
-    method:'POST',
-    headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=representation'},
-    body:JSON.stringify(payload)
-  }).then(function(r){
-    console.log('Respuesta aviso:',r.status);
-    if(!r.ok)return r.text().then(function(t){console.error('Error aviso:',t);alert('Error al guardar aviso: '+t);throw new Error(t)});
-    return r.json();
-  }).then(function(data){
-    console.log('Aviso guardado:',data);
-    loadAvisos();
-  }).catch(function(e){console.error('Error insertAviso:',e)});
-}
-
-function deleteAviso(id){
-  return fetch(SUPABASE_URL+'/rest/v1/avisos?id=eq.'+id,{
-    method:'DELETE',
-    headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
-  }).then(function(){loadAvisos()});
-}
-
-function getCU(){
-  if(CU&&CU.n)return CU;
-  try{var s=localStorage.getItem('bss');if(s){CU=JSON.parse(s);var u=GU();if(u[CU.id])CU={id:CU.id,r:u[CU.id].r,n:u[CU.id].n};else CU=null}}catch(e){CU=null}
-  return CU;
-}
 function GU(){var e={};try{e=JSON.parse(localStorage.getItem('bseu'))||{}}catch(x){}var a={};for(var k in BU)a[k]=BU[k];for(var k in e)a[k]=e[k];return a}
 function H(s){if(!s)return'';var d=document.createElement('div');d.textContent=s;return d.innerHTML}
 function FP(n){return n.toFixed(2).replace('.',',')+' \u20ac'}
@@ -590,7 +542,7 @@ function showApp(){
   $('topRole').textContent=isA()?'Admin':'Mec\u00e1nico';
   $('navAdm').style.display=isA()?'block':'none';
   $('discBox').style.display=isA()?'block':'none';
-  loadPres();loadAvisos();
+  loadPres();renderAvi();
   if(isA())renderUsers();
 }
 
@@ -797,8 +749,8 @@ on('cliInput','input',function(){
 });
 
 // AVISOS
-function getAvi(){return window._avisos||[]}
-function saveAvi(a){window._avisos=a}
+function getAvi(){try{return JSON.parse(localStorage.getItem('bsa'))||[]}catch(e){return[]}}
+function saveAvi(a){try{localStorage.setItem('bsa',JSON.stringify(a))}catch(e){alert('Error: almacenamiento lleno. Borra avisos antiguos para liberar espacio.')}}
 
 on('aviCli','input',function(){
   var q=this.value.trim().toUpperCase(),r=$('aviCliSugg');
@@ -808,9 +760,6 @@ on('aviCli','input',function(){
 });
 
 on('aviBtn','click',function(){
-  console.log('aviBtn clicked');
-  try{
-  var _cu=getCU();if(!_cu||!_cu.n){alert('Error: sesión no iniciada. Haz login de nuevo.');return}
   var cli=$('aviCli').value.trim();
   var sub=$('aviSub').value.trim();
   var txt=$('aviTxt').value.trim();
@@ -826,16 +775,14 @@ on('aviBtn','click',function(){
     if(!para.length){alert('Selecciona al menos un destinatario');return}
   }
   var a=getAvi(),n=new Date();
-  a.unshift({c:cli||'',s:sub||'',t:txt||'',u:urg,w:_cu.n,wi:_cu.id,d:n.toLocaleDateString('es-ES')+' '+n.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}),para:para});
+  a.unshift({c:cli||'',s:sub||'',t:txt||'',u:urg,w:CU.n,wi:CU.id,d:n.toLocaleDateString('es-ES')+' '+n.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}),para:para});
   saveAvi(a);
   $('aviCli').value='';$('aviSub').value='';$('aviTxt').value='';$('aviUrg').checked=false;$('aviVis').value='todos';$('aviUsersBox').style.display='none';
   renderAvi();
   toast('\u2705 Aviso creado');
-  }catch(err){alert('Error al crear aviso: '+err.message);console.error(err)}
 });
 
 function renderAvi(){
-  if(!CU)return;
   var a=getAvi(),l=$('aviList'),b=$('bdgAvi'),cnt=$('aviCount');
   // Filtrar: solo mostrar avisos visibles para el usuario actual
   var vis=[];
@@ -908,7 +855,7 @@ document.addEventListener('click',function(e){
   if(t.getAttribute('data-di')!==null&&t.getAttribute('data-di')!==''){PLS.splice(parseInt(t.getAttribute('data-di')),1);savePres();renderPres();return}
   if(t.getAttribute('data-pcn')){$('presClient').value=t.getAttribute('data-pcn');PCN=t.getAttribute('data-pcn');$('presClientSugg').innerHTML='';savePres();return}
   if(t.getAttribute('data-avcli')){$('aviCli').value=t.getAttribute('data-avcli');$('aviCliSugg').style.display='none';return}
-  if(t.getAttribute('data-avdel')!==null&&t.getAttribute('data-avdel')!==''){var avId=t.getAttribute('data-avdel');deleteAviso(avId);return}
+  if(t.getAttribute('data-avdel')!==null&&t.getAttribute('data-avdel')!==''){var a=getAvi();a.splice(parseInt(t.getAttribute('data-avdel')),1);saveAvi(a);renderAvi();return}
   if(t.getAttribute('data-avwa')!==null){var a=getAvi(),x=a[parseInt(t.getAttribute('data-avwa'))];if(x){var msg='*AVISO BS*\n'+(x.c?'Cliente: '+x.c+'\n':'')+(x.s?'Asunto: '+x.s+'\n':'')+(x.t?x.t+'\n':'')+'\n_'+x.w+' - '+x.d+'_';window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank')}return}
   if(t.getAttribute('data-avpdf')!==null){var a=getAvi(),x=a[parseInt(t.getAttribute('data-avpdf'))];if(x)makeAviPDF(x);return}
   if(t.getAttribute('data-tpw')){var uid=t.getAttribute('data-tpw'),pw=t.getAttribute('data-pwv'),el=$('pw_'+uid);if(el)el.textContent=(el.textContent===pw)?'\u2022\u2022\u2022\u2022':pw;return}
@@ -1097,15 +1044,14 @@ function quickSearch(term) {
 }
 
 // Mostrar botones rápidos cuando se borra la búsqueda
-try{
-  var _catInput = document.getElementById('catInput');
-  if (_catInput) {
-    _catInput.addEventListener('input', function() {
-      var btns = document.getElementById('catQuickBtns');
-      if (btns) btns.style.display = this.value.length < 2 ? 'flex' : 'none';
-    });
-  }
-}catch(e){console.error('catInput error:',e)}
+var _catInput = document.getElementById('catInput');
+if (_catInput) {
+  var _origHandler = null;
+  _catInput.addEventListener('input', function() {
+    var btns = document.getElementById('catQuickBtns');
+    if (btns) btns.style.display = this.value.length < 2 ? 'flex' : 'none';
+  });
+}
 
 // Ver foto ampliada
 function viewPhoto(url, title) {
@@ -1128,26 +1074,11 @@ function viewPhoto(url, title) {
   document.body.appendChild(ov);
 }
 
-// AUTO LOGIN (primero restaurar sesión, luego cargar datos)
-try{
-  var ss=localStorage.getItem('bss');
-  if(ss){
-    CU=JSON.parse(ss);
-    var uu=GU();
-    if(uu[CU.id]){
-      // Restaurar datos completos del usuario (por si faltaban campos)
-      CU={id:CU.id, r:uu[CU.id].r, n:uu[CU.id].n};
-      localStorage.setItem('bss',JSON.stringify(CU));
-      showApp();
-    }else{
-      CU=null;
-      localStorage.removeItem('bss');
-    }
-  }
-}catch(e){console.error('Auto-login error:',e);CU=null}
-
 // Cargar datos desde Supabase
 loadAllData();
+
+// AUTO LOGIN
+try{var ss=localStorage.getItem('bss');if(ss){CU=JSON.parse(ss);var uu=GU();if(uu[CU.id])showApp();else{CU=null;localStorage.removeItem('bss')}}}catch(e){}
 </script>
 
 </body></html>
