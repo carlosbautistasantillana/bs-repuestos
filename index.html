@@ -500,6 +500,17 @@ textarea{min-height:60px;resize:vertical}
 </div>
 </div>
 
+<div class="pg" id="pgSerie">
+<div class="pgt">🏷️ Nº de Serie</div>
+<div class="crd" style="border:2px solid #2C5F2D">
+<div style="font-size:.8rem;font-weight:700;color:#1B3A13;margin-bottom:8px">📄 Buscar documentación de máquina</div>
+<input type="text" id="serInput" placeholder="🔍 Nº de serie (ej. B/1301)" autocomplete="off">
+<button class="btn" id="serBtn">🔍 Buscar documento</button>
+<div style="font-size:.7rem;color:#6b7280;margin-top:8px">Escribe el número de serie tal cual aparece en la máquina. Se entienden formatos como B/1301, B 1301, b-1301 o B_1301.</div>
+</div>
+<div id="serRes" style="margin-top:14px"></div>
+</div>
+
 
 </div>
 
@@ -511,6 +522,7 @@ textarea{min-height:60px;resize:vertical}
 <div data-nav="pgCli"><span class="ni">👥</span>Clientes</div>
 <div data-nav="pgAvi"><span class="ni">🔔</span>Avisos<span class="bdg" id="bdgAvi" style="display:none">0</span></div>
 <div data-nav="pgJor"><span class="ni">🕐</span>Jornada</div>
+<div data-nav="pgSerie"><span class="ni">🏷️</span>Nº Serie</div>
 <div data-nav="pgAdm" id="navAdm" style="display: block;"><span class="ni">⚙</span>Admin</div>
 </div>
 
@@ -1100,6 +1112,61 @@ document.querySelector('.bnav').addEventListener('click',function(e){
   t.classList.add('on');
   if(id==='pgAst')try{astLoadList()}catch(e){}
 });
+
+// ===== BUSQUEDA POR Nº DE SERIE (documentacion PDF) =====
+// Carpeta donde estan los PDF en el repositorio (bs-repuestos).
+// Cada PDF se llama solo con el numero de serie normalizado (las barras pasan a guiones).
+// Ej: B/1301  ->  docs/B-1301.pdf
+var PDF_BASE='docs/';
+
+// Normaliza el numero de serie a nombre de fichero:
+// quita espacios, deja letras/numeros y barras, convierte / en - y pasa a mayusculas.
+function serNorm(s){
+  s=(s||'').trim().toUpperCase();
+  s=s.replace(/\s+/g,'');
+  s=s.replace(/[^A-Z0-9\/\-]/g,'');
+  s=s.replace(/\//g,'-');
+  s=s.replace(/-+/g,'-');
+  return s;
+}
+
+function serBuscar(){
+  var raw=$('serInput').value;
+  var serie=serNorm(raw);
+  var res=$('serRes');
+  if(!serie){ res.innerHTML='<div class="crd" style="color:#B45309">Escribe un número de serie.</div>'; return; }
+  var url=PDF_BASE+serie+'.pdf';
+  res.innerHTML='<div class="crd">⏳ Buscando documento <b>'+serie+'</b>...</div>';
+  fetch(url,{method:'HEAD'}).then(function(r){
+    if(r.ok){
+      res.innerHTML=
+        '<div class="crd" style="border:2px solid #2C5F2D">'+
+        '<div style="font-size:.8rem;font-weight:700;color:#1B3A13;margin-bottom:8px">✅ Documento encontrado: '+serie+'</div>'+
+        '<a class="btn" href="'+url+'" target="_blank" style="text-decoration:none;text-align:center;margin-bottom:8px">📄 Abrir documento</a>'+
+        '<iframe src="'+url+'" style="width:100%;height:70vh;border:1px solid #e5e7eb;border-radius:8px"></iframe>'+
+        '</div>';
+    }else{
+      serNoExiste(serie);
+    }
+  }).catch(function(){
+    res.innerHTML=
+      '<div class="crd" style="border:2px solid #B45309">'+
+      '<div style="font-size:.8rem;font-weight:700;color:#B45309;margin-bottom:8px">No se ha podido comprobar el documento '+serie+'</div>'+
+      '<a class="btn" href="'+url+'" target="_blank" style="text-decoration:none;text-align:center">📄 Intentar abrir de todos modos</a>'+
+      '</div>';
+  });
+}
+
+function serNoExiste(serie){
+  $('serRes').innerHTML=
+    '<div class="crd" style="border:2px solid #B45309">'+
+    '<div style="font-size:.8rem;font-weight:700;color:#B45309;margin-bottom:6px">❌ No se ha encontrado documentación para: '+serie+'</div>'+
+    '<div style="font-size:.72rem;color:#6b7280">Comprueba que el número de serie está bien escrito y que el PDF se ha subido a la carpeta <b>docs/</b> con el nombre <b>'+serie+'.pdf</b></div>'+
+    '</div>';
+}
+
+if($('serBtn'))$('serBtn').addEventListener('click',serBuscar);
+if($('serInput'))$('serInput').addEventListener('keydown',function(e){ if(e.key==='Enter')serBuscar(); });
 
 // SEARCH (shared) - con búsqueda normalizada y refs
 function normQ(s){
