@@ -1117,7 +1117,7 @@ document.querySelector('.bnav').addEventListener('click',function(e){
 // Carpeta donde estan los PDF en el repositorio (bs-repuestos).
 // Cada PDF se llama solo con el numero de serie normalizado (las barras pasan a guiones).
 // Ej: B/1301  ->  docs/B-1301.pdf
-var PDF_BASE='docs/';
+var PDF_BASE='';
 
 // Normaliza el numero de serie a nombre de fichero:
 // quita espacios, deja letras/numeros y barras, convierte / en - y pasa a mayusculas.
@@ -1161,7 +1161,7 @@ function serNoExiste(serie){
   $('serRes').innerHTML=
     '<div class="crd" style="border:2px solid #B45309">'+
     '<div style="font-size:.8rem;font-weight:700;color:#B45309;margin-bottom:6px">❌ No se ha encontrado documentación para: '+serie+'</div>'+
-    '<div style="font-size:.72rem;color:#6b7280">Comprueba que el número de serie está bien escrito y que el PDF se ha subido a la carpeta <b>docs/</b> con el nombre <b>'+serie+'.pdf</b></div>'+
+    '<div style="font-size:.72rem;color:#6b7280">Comprueba que el número de serie está bien escrito y que el PDF se ha subido a GitHub con el nombre <b>'+serie+'.pdf</b></div>'+
     '</div>';
 }
 
